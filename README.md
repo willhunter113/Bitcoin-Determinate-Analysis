@@ -4,7 +4,7 @@
 
 This project is in development
 
-#Introduction
+#Introduction#
 Data Analytics 401 senior capstone project about the relationship between macroeconomics and Bitcoin
 
 
