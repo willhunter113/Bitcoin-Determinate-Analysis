@@ -1,0 +1,72 @@
+---
+title: "DA401-API"
+output: html_document
+date: '2022-09-27'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+install.packages("dplyr")
+library(dplyr)
+install.packages("Quandl")
+library(Quandl)
+```
+
+Data Collection
+
+The data from this project is pulled from Nasdaq data link using their API. If you register as a free user you will be given an API key to pull the data from their database.
+
+Insert your API Key from Nasdaq data link website into quotation below
+```{r}
+Quandl.api_key("DD5KntqEEzVLo__LMXPs")
+```
+
+Data from "Federal Reserve Economic Data"
+```{r}
+gdp <- Quandl('FRED/GDP',collapse = "monthly", type = "raw")
+cpiAuc <- Quandl('FRED/CPIAUCSL',collapse = "monthly", type = "raw")
+fedFunds <- Quandl('FRED/DFF', collapse = "monthly",type = "raw")
+treasuryYield10 <- Quandl('FRED/DGS10', collapse = "monthly",type = "raw")
+treasuryYield3 <- Quandl('FRED/DTB3', collapse = "monthly",type = "raw")
+treasuryYield30 <- Quandl('FRED/DGS30',collapse = "monthly", type = "raw")
+unemployST <- Quandl('FRED/NROUST', collapse = "monthly",type = "raw")
+unemployLT <- Quandl('FRED/NROU', collapse = "monthly",type = "raw")
+unemployCivilian <- Quandl('FRED/UNRATE',collapse = "monthly", type = "raw")
+saveRate <- Quandl('FRED/PSAVERT', collapse = "monthly",type = "raw")
+disposeIncome <- Quandl('FRED/DSPI', collapse = "monthly",type = "raw")
+disposeIncomeReal <- Quandl('FRED/DSPIC96', collapse = "monthly",type = "raw")
+```
+
+Data from "University of Michicgan Consumer Survey"
+```{r}
+consumerEconPol <- Quandl('UMICH/SOC34', collapse = "monthly",type = "raw")
+consumerChangeIR <- Quandl("UMICH/SOC31", collapse = "monthly", type = "raw")
+consumerChangePrice <- Quandl("UMICH/SOC32", collapse = "monthly", type = "raw")
+consumerChangeUnemploy <- Quandl("UMICH/SOC30", collapse = "monthly", type = "raw")
+consumerChangeBusiness <- Quandl("UMICH/SOC28", collapse = "monthly", type = "raw")
+consumerIncStocks <- Quandl("UMICH/SOC20", collapse = "monthly", type = "raw")
+consumerSentimentIndex <- Quandl("UMICH/SOC1", collapse = "monthly", type = "raw")
+```
+
+Uploading Bitcoin and U.S. Stock Market Index Data
+```{r}
+
+
+```
+
+University of Michigan Data Alteration
+```{r}
+
+
+```
+
+Aggregating Data to one Dataset
+```{r}
+
+
+
+```
+
