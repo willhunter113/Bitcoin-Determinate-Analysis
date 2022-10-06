@@ -1,4 +1,4 @@
-# Bitcoin-Determinate-Analysis
+# Bitcoin Analysis
 
 *authors*: Will Hunter
 
