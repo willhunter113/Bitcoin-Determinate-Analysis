@@ -13,6 +13,11 @@ install.packages("dplyr")
 library(dplyr)
 install.packages("Quandl")
 library(Quandl)
+
+```
+```{r}
+install.packages("anytime")
+library("anytime")
 ```
 
 Data Collection
@@ -51,22 +56,171 @@ consumerIncStocks <- Quandl("UMICH/SOC20", collapse = "monthly", type = "raw")
 consumerSentimentIndex <- Quandl("UMICH/SOC1", collapse = "monthly", type = "raw")
 ```
 
-Uploading Bitcoin and U.S. Stock Market Index Data
+Uploading Bitcoin & Stock Market Data collected from Bloomberg terminal
 ```{r}
+getwd()
+DependentVars <- read.csv("DATA/IndexData.csv")
+DependentVars <- IndexData[1:148,]
+#str(DependentVar$Date)
+```
 
-
+convert short dates to long dates to match UMich data
+```{r}
+DependentVars$Date <- mdy(aDependentVars$Date)
 ```
 
 University of Michigan Data Alteration
+
+Consumer evaluation in economic policy
 ```{r}
+UMich <- data.frame(consumerEconPol$Date)
+names(UMich)[names(UMich) == 'consumerEconPol.Date'] <- "Date"
+consumerEconPol[,'EconomicPolicy'] <- NA
+for (i in 1:nrow(consumerEconPol)){
+  
+  consumerEconPol$EconomicPolicy[i]= ((consumerEconPol$`Good Job`[i]/(consumerEconPol$`Good Job`[i]+consumerEconPol$`Fair Job`[i]+consumerEconPol$`Poor Job`[i])*3))+((consumerEconPol$`Fair Job`[i]/(consumerEconPol$`Good Job`[i]+consumerEconPol$`Fair Job`[i]+consumerEconPol$`Poor Job`[i]))*2)+((consumerEconPol$`Poor Job`[i]/(consumerEconPol$`Good Job`[i]+consumerEconPol$`Fair Job`[i]+consumerEconPol$`Poor Job`[i]))*1)
 
-
+}
 ```
 
-Aggregating Data to one Dataset
 ```{r}
-
-
-
+UMich <- cbind(UMich, consumerEconPol["EconomicPolicy"])
 ```
 
+Consumer Sentiment Index
+
+```{r}
+sentimentIndex <- consumerSentimentIndex[1:536,]
+UMich <- cbind(UMich, sentimentIndex["Index"])
+```
+
+Consumer Inc Stocks --> use mean???
+Do we want to use this variable because it decreases our observations in half???
+
+```{r}
+UMichStock <- UMich[1:242,]
+UMichStock <- cbind(UMichStock, consumerIncStocks["Mean"])
+names(UMichStock)[names(UMichStock)== "Mean"] <- "ExpectedStockIncrease"
+```
+
+Consumer expected change in unemployment
+
+```{r}
+consumerChangeUnemploy[,'ConsumerUnemployment'] <- NA
+for (i in 1:nrow(consumerChangeUnemploy)){
+  
+  consumerChangeUnemploy$ConsumerUnemployment[i]= ((consumerChangeUnemploy$More[i]/(consumerChangeUnemploy$More[i]+consumerChangeUnemploy$Less[i]+consumerChangeUnemploy$Same[i])*3))+((consumerChangeUnemploy$Same[i]/(consumerChangeUnemploy$More[i]+consumerChangeUnemploy$Less[i]+consumerChangeUnemploy$Same[i]))*2)+((consumerChangeUnemploy$Less[i]/(consumerChangeUnemploy$More[i]+consumerChangeUnemploy$Less[i]+consumerChangeUnemploy$Same[i]))*1)
+
+}
+
+UMich <- cbind(UMich, consumerChangeUnemploy["ConsumerUnemployment"])
+```
+
+If we want to include stock increases
+```{r}
+ChangeUnemploy <- consumerChangeUnemploy[1:242,]
+UMichStock <- cbind(UMichStock, ChangeUnemploy["ConsumerUnemployment"])
+```
+
+Consumer expected change in prices
+
+```{r}
+consumerChangePrice <- consumerChangePrice %>% rowwise() %>% mutate(More = sum(c_across(`Up by 1-2%`:`Up; DK how much`)))
+#print(consumerChangePrice$More)
+```
+
+```{r}
+consumerChangePrice[,'Prices'] <- NA
+for (i in 1:nrow(consumerChangePrice)){
+  
+  consumerChangePrice$Prices[i]= ((consumerChangePrice$More[i]/(consumerChangePrice$More[i]+consumerChangePrice$Down[i]+consumerChangePrice$Same[i])*3))+((consumerChangePrice$Same[i]/(consumerChangePrice$More[i]+consumerChangePrice$Down[i]+consumerChangePrice$Same[i]))*2)+((consumerChangePrice$Down[i]/(consumerChangePrice$More[i]+consumerChangePrice$Down[i]+consumerChangePrice$Same[i]))*1)
+
+}
+
+UMich <- cbind(UMich, consumerChangePrice["Prices"])
+```
+
+If we want to include stock increases
+```{r}
+ChangePrice <- consumerChangePrice[1:242,]
+UMichStock <- cbind(UMichStock, ChangePrice["Prices"])
+```
+
+Consumer expected change in interest rates
+
+```{r}
+consumerChangeIR[,'InterestRates'] <- NA
+for (i in 1:nrow(consumerChangeIR)){
+  
+  consumerChangeIR$InterestRates[i]= ((consumerChangeIR$`Go Up`[i]/(consumerChangeIR$`Go Up`[i]+consumerChangeIR$`Go Down`[i]+consumerChangeIR$`Stay the Same`[i])*3))+((consumerChangeIR$`Stay the Same`[i]/(consumerChangeIR$`Go Up`[i]+consumerChangeIR$`Go Down`[i]+consumerChangeIR$`Stay the Same`[i]))*2)+((consumerChangeIR$`Go Down`[i]/(consumerChangeIR$`Go Up`[i]+consumerChangeIR$`Go Down`[i]+consumerChangeIR$`Stay the Same`[i]))*1)
+}
+
+UMich <- cbind(UMich, consumerChangeIR["InterestRates"])
+```
+
+If we want to include stock increases
+```{r}
+ChangeIR <- consumerChangeIR[1:242,]
+UMichStock <- cbind(UMichStock, ChangeIR["InterestRates"])
+```
+
+Consumer expected change in business conditions
+
+```{r}
+consumerChangeBusiness[,'BusinessConditions'] <- NA
+for (i in 1:nrow(consumerChangeBusiness)){
+  
+  consumerChangeBusiness$BusinessConditions[i]= ((consumerChangeBusiness$`Good Times`[i]/(consumerChangeBusiness$`Good Times`[i]+consumerChangeBusiness$`Bad Times`[i]+consumerChangeBusiness$Uncertain[i])*3))+((consumerChangeBusiness$Uncertain[i]/(consumerChangeBusiness$`Good Times`[i]+consumerChangeBusiness$`Bad Times`[i]+consumerChangeBusiness$Uncertain[i]))*2)+((consumerChangeBusiness$`Bad Times`[i]/(consumerChangeBusiness$`Good Times`[i]+consumerChangeBusiness$`Bad Times`[i]+consumerChangeBusiness$Uncertain[i]))*1)
+}
+
+UMich <- cbind(UMich, consumerChangeBusiness["BusinessConditions"])
+```
+
+If we want to include stock increases
+```{r}
+ChangeBC <- consumerChangeBusiness[1:242,]
+UMichStock <- cbind(UMichStock, ChangeBC["BusinessConditions"])
+```
+
+
+Aggregating Fed data into one Dataset
+```{r}
+Fed <- data.frame(disposeIncome$Date)
+CPI <- cpiAuc[1:756,]
+FedFunds<- fedFunds[1:756,]
+Treasury3 <- treasuryYield3[1:756,]
+Treasury10 <- treasuryYield10[1:756,]
+Treasury30 <- treasuryYield30[1:756,]
+Civillian<- unemployCivilian[1:756,]
+
+Fed <- cbind(Fed,saveRate$Value,disposeIncome$Value,CPI$Value,FedFunds$Value,Treasury3$Value,Treasury10$Value, Treasury30$Value, Civillian$Value)
+
+FederalReserve <- Fed[1:536,]
+```
+
+Renaming columns in the aggregated Federal Reserve Data
+```{r}
+names(FederalReserve)[names(FederalReserve)== "disposeIncome.Date"] <- "Date"
+names(FederalReserve)[names(FederalReserve)== "saveRate$Value"] <- "SavingsRate"
+names(FederalReserve)[names(FederalReserve)== "disposeIncome$Value"] <- "DisposableIncome"
+names(FederalReserve)[names(FederalReserve)== "CPI$Value"] <- "CPI"
+names(FederalReserve)[names(FederalReserve)== "FedFunds$Value"] <- "FederalFundsRate"
+names(FederalReserve)[names(FederalReserve)== "Treasury3$Value"] <- "3YrTreasuryYield"
+names(FederalReserve)[names(FederalReserve)== "Treasury10$Value"] <- "10YrTreasuryYield"
+names(FederalReserve)[names(FederalReserve)== "Treasury30$Value"] <- "30YrTreasuryYield"
+names(FederalReserve)[names(FederalReserve)== "Civillian$Value"] <- "Unemployment"
+```
+
+Merging the University of Michigan Data and the Federal Reserve Data
+```{r}
+IndependentVars <- merge(FederalReserve,UMich, by = "Date")
+```
+
+Adding Bitcoin and Stock Index Data to independent Variables
+```{r}
+Data <- left_join(aDependentVars,IndependentVars, join_by = "Date")
+```
+
+
+See if you can get more recent 2022 data from FRED and UMICH for test set
+\
