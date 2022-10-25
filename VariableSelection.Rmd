@@ -1,0 +1,101 @@
+---
+title: "VariableSelection"
+output: html_document
+date: '2022-10-24'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+install.packages("dplyr")
+library(dplyr)
+install.packages("caret")
+library(caret)
+install.packages("Hmisc")
+library(Hmisc)
+```
+
+```{r}
+Data <- read.csv("BitcoinData.csv", header = TRUE, sep = ",")
+VarSelection <- Data[11:148,]
+```
+
+Summary stats
+```{r}
+summary(VarSelection)
+```
+
+```{r}
+hist.data.frame(VarSelection)
+```
+
+
+Check for the model assumptions on Lasso Regression
+
+scaling data for lasso on bitcoin
+
+Scaling the data by subtracting the mean "centering" and dividing by standard deviation "scaling"
+```{r}
+x <- VarSelection %>% 
+  select(-c(Date,Dow,SP500,Nasdaq,Bitcoin,ChangeDow,ChangeSP500,ChangeNasdaq,ChangeBitcoin))
+
+# Scale data
+BitcoinLasso <- preProcess(x, method = c("center", "scale"))
+x <- predict(BitcoinLasso, x)
+
+BitcoinLasso <- data.frame(cbind(x,Lasso$ChangeBitcoin))
+names(BitcoinLasso)[names(BitcoinLasso)== "Lasso.ChangeBitcoin"] <- "ChangeBitcoin"
+
+```
+
+Create data partition for test and training sets
+```{r}
+index <- createDataPartition(BitcoinLasso$ChangeBitcoin, p=0.85, list=FALSE)
+
+BitcoinTrain <- BitcoinLasso[index,]
+BitcoinTest <- BitcoinLasso[-index,]
+```
+
+```{r}
+Lasso_bit <- train(ChangeBitcoin ~ ., data = BitcoinTrain, method = "glmnet", 
+                   tuneGrid = expand.grid(alpha = 1, lambda = 1))
+
+```
+
+```{r}
+data.frame(as.data.frame.matrix(coef(Lasso_bit$finalModel, Lasso_bit$bestTune$lambda)))
+
+```
+ADD IN DOW, NASDAQ, AND SP500
+
+
+Random Forest
+
+  SHOULD I USED SCALED DATA FOR THIS ONE TOO OR JUST FOR LASSO? SHOULD I EVEN USE IT FOR LASSO?
+
+```{r}
+RF <- VarSelection %>% 
+  select(-c(Date,Dow,SP500,Nasdaq,Bitcoin,ChangeDow,ChangeSP500,ChangeNasdaq))
+
+index <- createDataPartition(RF$ChangeBitcoin, p=0.85, list=FALSE)
+
+BitcoinTrainRF <- RF[index,]
+BitcoinTestRF <- RF[-index,]
+
+```
+
+```{r}
+trctrl = trainControl(method = "repeatedcv")
+
+RF_bit = train(ChangeBitcoin ~ ., data = BitcoinTrainRF, method = "rf", trControl = trctrl,
+               ntree = 25,importance = TRUE)
+
+ImportanceReg = varImp(RF_bit)
+plot(ImportanceReg)
+ImportanceReg
+```
+
+
+
