@@ -1,0 +1,197 @@
+---
+title: "Variable Selection - S&P"
+output: html_document
+date: '2022-11-01'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+install.packages("dplyr")
+library(dplyr)
+install.packages("caret")
+library(caret)
+install.packages("Hmisc")
+library(Hmisc)
+install.packages("tidyverse")
+library(tidyverse)
+install.packages("corrplot")
+library(corrplot)
+
+```
+
+Read in data
+```{r}
+Data <- read.csv("BitcoinData.csv", header = TRUE, sep = ",")
+VarSelection <- Data[11:148,]
+```
+
+```{r}
+assumptionsSP <- VarSelection %>% 
+  select(-c(Date,Dow,SP500,Nasdaq,Bitcoin,ChangeDow,ChangeBitcoin,ChangeNasdaq))
+
+corrplot(cor(assumptionsSP), tl.col = "black", tl.cex = 0.8)
+```
+CPI & disposable income, Fed funds rate & 3 year treasury, 10 & 30 year treasury, index & business conditions, business conditions & unemployment, 
+These groups are all correlated heavily, therefore take one out of all groups.
+
+```{r}
+assumptionsSP1<- subset(assumptionsSP, select = -c(X3YrTreasuryYield,disposable.Value,X30YrTreasuryYield,BusinessConditions,Unemployment) )
+
+corrplot(cor(assumptionsSP1), tl.col = "black", tl.cex = 0.8)
+```
+There is now no multicollinearity in the dependent variables
+
+```{r}
+multiVarModelSP <- lm(ChangeSP500 ~ ., data = assumptionsSP1)
+
+par(mfrow = c(2, 2))
+plot(multiVarModelSP)
+```
+
+
+
+Linear relationship
+```{r}
+plot(multiVarModelSP,1)
+```
+There is a linear relationship in the data because the red line is  approximately horizontal at 0. We want the residuals to be randomly scattered and it appears they are in this case.
+
+
+normally distributed residuals
+```{r}
+plot(multiVarModelSP,2)
+```
+We can assume normality because the normalized residuals generally follow the straight line in the plot.
+
+homoskedasticity
+```{r}
+plot(multiVarModelSP,3)
+```
+
+```{r}
+library(lmtest)
+bptest(multiVarModelSP)
+```
+We can now say that heteroskedasticity is present because we can reject the Breusch-Pagan test null hypothesis that the data is homoskedastic. We also see this visually in the plot because the variances of the residuals decrease before and increase after the fitted outcome variable (change in SP500) equates to 0
+
+The data fails to meet the homoskdasticity assumptions of multiple linear regression, so we cannot use LASSO in the variable selection process.
+
+LASSO REGRESSION
+
+Scaling the data by subtracting the mean "centering" and dividing by standard deviation "scaling"
+```{r}
+x <- assumptionsSP1 %>% 
+  select(-c(ChangeSP500))
+
+# Scale data
+SP500Scaled <- preProcess(x, method = c("center", "scale"))
+x <- predict(SP500Scaled, x)
+
+SP500Scaled <- data.frame(cbind(x,assumptionsSP1$ChangeSP500))
+names(SP500Scaled)[names(SP500Scaled)== "assumptionsSP1.ChangeSP500"] <- "ChangeSP500"
+
+```
+
+Create data partition for test and training sets
+```{r}
+index <- createDataPartition(assumptionsSP1$ChangeSP500, p=0.85, list=FALSE)
+
+SP500LassoTrain <- assumptionsSP1[index,]
+SP500LassoTest <- assumptionsSP1[-index,]
+```
+
+```{r}
+SP500Lasso <- train(ChangeSP500 ~ ., data = SP500LassoTrain, method = "glmnet", 
+                   tuneGrid = expand.grid(alpha = 1, lambda = 1))
+```
+
+```{r}
+a <- data.frame(as.data.frame.matrix(coef(SP500Lasso$finalModel, SP500Lasso$bestTune$lambda)))
+
+```
+
+
+Removing potential outliers that were present in the data before to see if we can meet assumptions
+
+```{r}
+boxplot(assumptions1$ChangeSP500, plot=FALSE)$out
+outliers <- boxplot(assumptions1$ChangeSP500, plot=FALSE)$out
+assumptionsOut<-assumptions1
+assumptionsOut<- assumptionsOut[-which(assumptionsOut$ChangeSP500 %in% outliers),]
+```
+
+There are no outliers by definition, therefore we will move forward with this infromation gained cautiously because some assumptions cannot be met
+
+
+Random Forest
+
+Scaling the data by subtracting the mean "centering" and dividing by standard deviation "scaling"
+```{r}
+x <- assumptionsSP1 %>% 
+  select(-c(ChangeSP500))
+
+# Scale data
+SP500Scaled <- preProcess(x, method = c("center", "scale"))
+x <- predict(SP500Scaled, x)
+
+SP500Scaled <- data.frame(cbind(x,assumptionsSP1$ChangeSP500))
+names(SP500Scaled)[names(SP500Scaled)== "assumptionsSP1.ChangeSP500"] <- "ChangeSP500"
+
+```
+
+```{r}
+RFSP500 <- SP500Scaled
+
+index <- createDataPartition(RFSP500$ChangeSP500, p=0.85, list=FALSE)
+
+SP500TrainRF <- RFSP500[index,]
+SP500TestRF <- RFSP500[-index,]
+```
+
+```{r}
+trctrl = trainControl(method = "repeatedcv")
+
+RF_SP = train(ChangeSP500 ~ ., data = SP500TrainRF, method = "rf", trControl = trctrl,
+               ntree = 500,importance = TRUE)
+```
+
+Results
+```{r}
+RF_SP$results
+```
+
+```{r}
+ImportanceRegSP = varImp(RF_SP)
+
+plot(ImportanceRegSP, main = "Variable Importance from Random Forest", ylab = "Independent Variables", col = "darkolivegreen3" )
+```
+
+```{r}
+p <- ggplot(ImportanceRegSP, aes(x=variable, weight=importance, fill=variable)) 
+p <- p + geom_bar(stat="identity",fill = "cornflowerblue")
+p <- p + ggtitle("Bitcoin Variable Importance from Random Forest")
+p <- p + theme(panel.background = element_rect(fill = "lightgrey",colour = "lightgrey"))
+p
+```
+
+
+
+```{r}
+SP500Predictive <- subset(VarSelection, select = -c(Dow,ChangeDow, Bitcoin,ChangeBitcoin, SP500, Nasdaq,ChangeNasdaq, X3YrTreasuryYield, disposable.Value, X30YrTreasuryYield, BusinessConditions, Unemployment, EquityMktUncertainty, ConsumerUnemployment,EconomicPolicy,Prices))
+
+
+```
+
+
+```{r}
+#getwd()
+write.csv(SP500Predictive,"SP500Predictive.csv", row.names = FALSE)
+````
+
+
+
+
+

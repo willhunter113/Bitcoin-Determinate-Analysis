@@ -1,0 +1,215 @@
+---
+title: "VariableSelection"
+output: html_document
+date: '2022-10-24'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+install.packages("dplyr")
+library(dplyr)
+install.packages("caret")
+library(caret)
+install.packages("Hmisc")
+library(Hmisc)
+install.packages("tidyverse")
+library(tidyverse)
+```
+
+Read in data
+```{r}
+Data <- read.csv("BitcoinData.csv", header = TRUE, sep = ",")
+VarSelection <- Data[11:148,]
+```
+
+Summary stats
+```{r}
+summary(VarSelection)
+```
+
+```{r}
+hist.data.frame(VarSelection)
+```
+
+
+Check for the model assumptions on Lasso Regression
+
+multicollinearity
+```{r}
+#install.packages("corrplot")
+#library(corrplot)
+
+assumptions <- VarSelection %>% 
+  select(-c(Date,Dow,SP500,Nasdaq,Bitcoin,ChangeDow,ChangeSP500,ChangeNasdaq))
+
+corrplot(cor(assumptions), tl.col = "black", tl.cex = 0.8)
+```
+CPI & disposable income, Fed funds rate & 3 year treasury, 10 & 30 year treasury, index & business conditions, business conditions & unemployment, 
+These groups are all correlated heavily, therefore take one out of all groups.
+
+```{r}
+assumptions1<- subset(assumptions, select = -c(X3YrTreasuryYield,disposable.Value,X30YrTreasuryYield,BusinessConditions,Unemployment) )
+
+corrplot(cor(assumptions1), tl.col = "black", tl.cex = 0.8)
+```
+There is now no multicollinearity in the dependent variables
+
+```{r}
+multiVarModel <- lm(ChangeBitcoin ~ ., data = assumptions1)
+
+par(mfrow = c(2, 2))
+plot(multiVarModel)
+```
+
+Linear relationship
+```{r}
+plot(multiVarModel,1)
+```
+There is no linear relationship in the data because the red line is not approximately horizontal at 0. We want the residuals to be randomly scattered and it appears they follow a patern in this case.
+
+
+normally distributed residuals
+```{r}
+plot(multiVarModel,2)
+```
+We can assume normality because the normalized residuals generally follow the straight line in the plot.
+
+homoskedasticity
+```{r}
+plot(multiVarModel,3)
+```
+
+```{r}
+library(lmtest)
+bptest(multiVarModel)
+```
+We can now say that heteroskedasticity is present because we can reject the Breusch-Pagan test null hypothesis that the data is homoskedastic. We also see this visually in the plot because the variances of the residuals decrease before and increase after the fitted outcome varaible (change in Bitcoin) equates to 0
+
+The data fails to meet the some of assumptions of multiple linear regression, so we cannot use LASSO in the variable selection process.
+
+LASSO REGRESSION
+
+Create data partition for test and training sets
+```{r}
+index <- createDataPartition(assumptions1$ChangeBitcoin, p=0.85, list=FALSE)
+
+BitcoinLassoTrain <- assumptions1[index,]
+BitcoinLassoTest <- assumptions1[-index,]
+```
+
+```{r}
+Lasso_bit <- train(ChangeBitcoin ~ ., data = BitcoinLassoTrain, method = "glmnet", 
+                   tuneGrid = expand.grid(alpha = 1, lambda = 1))
+
+```
+
+```{r}
+a <- data.frame(as.data.frame.matrix(coef(Lasso_bit$finalModel, Lasso_bit$bestTune$lambda)))
+
+```
+
+
+Editing data to fit assumptions --> excluding outliers outside of inter 1.5 times interquartile range
+
+```{r}
+boxplot(assumptions1$ChangeBitcoin, plot=FALSE)$out
+outliers <- boxplot(assumptions1$ChangeBitcoin, plot=FALSE)$out
+assumptionsOut<-assumptions1
+assumptionsOut<- assumptionsOut[-which(assumptionsOut$ChangeBitcoin %in% outliers),]
+```
+
+
+```{r}
+multiVarModelNoOut <- lm(ChangeBitcoin ~ ., data = assumptionsOut)
+
+par(mfrow = c(2, 2))
+plot(multiVarModelNoOut)
+```
+LASSO REGRESSION w/ out outliers
+
+Scaling the data by subtracting the mean "centering" and dividing by standard deviation "scaling"
+```{r}
+x <- assumptionsOut %>% 
+  select(-c(ChangeBitcoin))
+
+# Scale data
+BitcoinScaledNoOut <- preProcess(x, method = c("center", "scale"))
+x <- predict(BitcoinScaledNoOut, x)
+
+BitcoinScaledNoOut <- data.frame(cbind(x,assumptionsOut$ChangeBitcoin))
+names(BitcoinScaledNoOut)[names(BitcoinScaledNoOut)== "assumptionsOut.ChangeBitcoin"] <- "ChangeBitcoin"
+
+```
+
+Create data partition for test and training sets
+```{r}
+index <- createDataPartition(BitcoinScaledNoOut$ChangeBitcoin, p=0.85, list=FALSE)
+
+BitcoinNoOutTrain <- BitcoinScaledNoOut[index,]
+BitcoinNoOutTest <- BitcoinScaledNoOut[-index,]
+```
+
+```{r}
+Lasso_bit <- train(ChangeBitcoin ~ ., data = BitcoinNoOutTrain, method = "glmnet", 
+                   tuneGrid = expand.grid(alpha = 1, lambda = 1))
+
+```
+
+```{r}
+b <- data.frame(as.data.frame.matrix(coef(Lasso_bit$finalModel, Lasso_bit$bestTune$lambda)))
+
+```
+
+
+
+
+Random Forest
+
+```{r}
+RF <- BitcoinScaled
+
+index <- createDataPartition(RF$ChangeBitcoin, p=0.85, list=FALSE)
+
+BitcoinTrainRF <- RF[index,]
+BitcoinTestRF <- RF[-index,]
+
+```
+
+```{r}
+trctrl = trainControl(method = "repeatedcv")
+
+RF_bit = train(ChangeBitcoin ~ ., data = BitcoinTrainRF, method = "rf", trControl = trctrl,
+               ntree = 500,importance = TRUE)
+```
+
+Results
+```{r}
+RF_bit$results
+```
+
+```{r}
+ImportanceReg = varImp(RF_bit)
+
+plot(ImportanceReg, main = "Variable Importance from Random Forest", ylab = "Independent Variables", col = "darkolivegreen3" )
+```
+
+```{r}
+p <- ggplot(ImportanceReg, aes(x=variable, weight=importance, fill=variable)) 
+p <- p + geom_bar(stat="identity",fill = "cornflowerblue")
+p <- p + ggtitle("Bitcoin Variable Importance from Random Forest")
+p <- p + theme(panel.background = element_rect(fill = "lightgrey",colour = "lightgrey"))
+p
+```
+
+```{r}
+BitcoinPredictive <- subset(VarSelection, select = -c(Dow,ChangeDow, Bitcoin, SP500, ChangeSP500, Nasdaq,ChangeNasdaq,FedReservesOnHand, ExpectedStockIncrease, ConsumerUnemployment, X10YrTreasuryYield, X3YrTreasuryYield, disposable.Value, X30YrTreasuryYield, BusinessConditions, Unemployment))
+```
+
+
+```{r}
+#getwd()
+write.csv(BitcoinPredictive,"BitcoinPredictive.csv", row.names = FALSE)
+````

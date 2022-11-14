@@ -1,0 +1,165 @@
+---
+title: "VarSelection-Dow"
+output: html_document
+date: '2022-11-01'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+install.packages("dplyr")
+library(dplyr)
+install.packages("caret")
+library(caret)
+install.packages("Hmisc")
+library(Hmisc)
+install.packages("tidyverse")
+library(tidyverse)
+install.packages("corrplot")
+library(corrplot)
+
+```
+
+Read in data
+```{r}
+Data <- read.csv("BitcoinData.csv", header = TRUE, sep = ",")
+VarSelection <- Data[11:148,]
+```
+
+```{r}
+assumptionsDow <- VarSelection %>% 
+  select(-c(Date,Dow,SP500,Nasdaq,Bitcoin,ChangeNasdaq,ChangeBitcoin,ChangeSP500))
+
+corrplot(cor(assumptionsDow), tl.col = "black", tl.cex = 0.8)
+```
+CPI & disposable income, Fed funds rate & 3 year treasury, 10 & 30 year treasury, index & business conditions, business conditions & unemployment, 
+These groups are all correlated heavily, therefore take one out of all groups.
+
+```{r}
+assumptionsDow1<- subset(assumptionsDow, select = -c(X3YrTreasuryYield,disposable.Value,X30YrTreasuryYield,BusinessConditions,Unemployment) )
+
+corrplot(cor(assumptionsDow1), tl.col = "black", tl.cex = 0.8)
+```
+There is now no multicollinearity in the dependent variables
+
+```{r}
+multiVarModelDow <- lm(ChangeDow ~ ., data = assumptionsDow1)
+
+par(mfrow = c(2, 2))
+plot(multiVarModelDow)
+```
+
+
+```{r}
+plot(multiVarModelDow,1)
+```
+There is a linear relationship in the data because the red line is approximately horizontal at 0. We want the residuals to be randomly scattered and it appears they are in this case.
+
+
+normally distributed residuals
+```{r}
+plot(multiVarModelDow,2)
+```
+We can assume normality because the normalized residuals generally follow the straight line in the plot.
+
+homoskedasticity
+```{r}
+plot(multiVarModelDow,3)
+```
+
+```{r}
+library(lmtest)
+bptest(multiVarModelDow)
+```
+We can say that heteroskedasticity is present because we can reject the Breusch-Pagan test null hypothesis that the data is homoskedastic with a pvalue of 0.002. We also see this visually in the plot because the variances of the residuals decrease before and increase after the fitted outcome variable (change in SP500) equates to 0
+
+The data fails to meet the homoskdasticity assumptions of multiple linear regression, so we will use LASSO in the variable selection process with much caution.
+
+
+LASSO REGRESSION
+
+Create data partition for test and training sets
+```{r}
+index <- createDataPartition(assumptionsDow1$ChangeDow, p=0.85, list=FALSE)
+
+DowLassoTrain <- assumptionsDow1[index,]
+DowLassoTest <- assumptionsDow1[-index,]
+```
+
+```{r}
+DowLasso <- train(ChangeDow ~ ., data = DowLassoTrain, method = "glmnet", 
+                   tuneGrid = expand.grid(alpha = 1, lambda = 1))
+```
+
+```{r}
+a <- data.frame(as.data.frame.matrix(coef(DowLasso$finalModel, DowLasso$bestTune$lambda)))
+
+```
+
+
+Random Forest
+
+Scaling the data by subtracting the mean "centering" and dividing by standard deviation "scaling"
+```{r}
+x <- assumptionsDow1 %>% 
+  select(-c(ChangeDow))
+
+# Scale data
+DowScaled <- preProcess(x, method = c("center", "scale"))
+x <- predict(DowScaled, x)
+
+DowScaled <- data.frame(cbind(x,assumptionsDow1$ChangeDow))
+names(DowScaled)[names(DowScaled)== "assumptionsDow1.ChangeDow"] <- "ChangeDow"
+
+```
+
+Seperating into train and test sets
+```{r}
+RFDow <- DowScaled
+
+index <- createDataPartition(RFDow$ChangeDow, p=0.85, list=FALSE)
+
+DowTrainRF <- RFDow[index,]
+DowTestRF <- RFDow[-index,]
+```
+
+```{r}
+trctrl = trainControl(method = "repeatedcv")
+
+RF_Dow = train(ChangeDow ~ ., data = DowTrainRF, method = "rf", trControl = trctrl,
+               ntree = 500,importance = TRUE)
+```
+
+Results
+```{r}
+RF_Dow$results
+```
+
+```{r}
+ImportanceRegDow = varImp(RF_Dow)
+
+plot(ImportanceRegDow, main = "Variable Importance from Random Forest", ylab = "Independent Variables", col = "darkolivegreen3" )
+```
+
+```{r}
+p <- ggplot(ImportanceRegDow, aes(x=variable, weight=importance, fill=variable)) 
+p <- p + geom_bar(stat="identity",fill = "cornflowerblue")
+p <- p + ggtitle("Bitcoin Variable Importance from Random Forest")
+p <- p + theme(panel.background = element_rect(fill = "lightgrey",colour = "lightgrey"))
+p
+```
+
+
+
+
+```{r}
+DowPredictive <- subset(VarSelection, select = -c(Dow,ChangeDow, Bitcoin, SP500, ChangeSP500, Nasdaq,ChangeNasdaq,InterestRates, FederalFundsRate,X10YrTreasuryYield,Prices,EconomicPolicyUncertainty, X3YrTreasuryYield, disposable.Value, X30YrTreasuryYield, BusinessConditions, Unemployment))
+```
+
+
+```{r}
+#getwd()
+write.csv(DowPredictive,"DowPredictive.csv", row.names = FALSE)
+````

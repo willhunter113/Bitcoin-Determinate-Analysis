@@ -1,0 +1,80 @@
+---
+title: "PredictiveModel"
+output: html_document
+date: '2022-11-01'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+install.packages("keras")
+```
+
+```{r}
+library(keras)
+install_keras(tensorflow = 'nightly')
+```
+
+```{r}
+#getwd()
+BitcoinPred <- read.csv("BitcoinPredictive.csv", header = TRUE, sep = ",")
+```
+
+
+
+```{r}
+set.seed(7)
+part = length(BitcoinPred$ChangeBitcoin) *0.80
+BitcoinPred1 = subset(BitcoinPred, select = -c(Date))
+BitcoinTrain = BitcoinPred[1:part,]
+BitcoinTest = BitcoinPred[part:138,]
+
+```
+
+
+NN Bitcoin model
+```{r}
+BitcoinModel <- keras_model_sequential() %>% 
+  layer_flatten(input_shape = c(11)) %>% 
+  layer_dense(units = 5, activation = "relu") %>% 
+  layer_dense(units = 5, activation = "relu")  %>%
+  layer_dense(units = 1, activation = "sigmoid")
+```
+
+```{r}
+#For regression problems, use loss and metric as mean_squared_error
+# No need to change optimizer
+BitcoinModel %>% 
+  compile(
+    loss = "mean_squared_error",
+    optimizer = "adam",
+    metric = "mean_squared_error")
+
+BitcoinModel %>% 
+  fit(
+    x = as.matrix(BitcoinTrain[c(2:12)]), y = BitcoinTrain$ChangeBitcoin,
+    epochs = 10,
+    validation_split = 0.3,
+    verbose = 2
+  )
+```
+
+```{r}
+#Prediction performance on test set
+BitcoinNNPredictions = BitcoinModel %>% 
+  predict(as.matrix(BitcoinTest[,c(2:12)]))
+
+sqrt(mean((BitcoinNNPredictions-BitcoinTest$ChangeBitcoin)^2)) #RMSE
+```
+
+```{r}
+print(BitcoinNNPredictions)
+```
+
+
+
+
+
+
