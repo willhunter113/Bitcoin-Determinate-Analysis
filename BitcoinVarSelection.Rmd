@@ -128,6 +128,20 @@ multiVarModelNoOut <- lm(ChangeBitcoin ~ ., data = assumptionsOut)
 par(mfrow = c(2, 2))
 plot(multiVarModelNoOut)
 ```
+
+```{r}
+plot(multiVarModelNoOut,1)
+```
+
+homoskedasticity
+```{r}
+plot(multiVarModelNoOut,3)
+```
+
+```{r}
+library(lmtest)
+bptest(multiVarModelNoOut)
+```
 LASSO REGRESSION w/ out outliers
 
 Scaling the data by subtracting the mean "centering" and dividing by standard deviation "scaling"

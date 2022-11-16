@@ -146,7 +146,7 @@ plot(ImportanceRegDow, main = "Variable Importance from Random Forest", ylab = "
 ```{r}
 p <- ggplot(ImportanceRegDow, aes(x=variable, weight=importance, fill=variable)) 
 p <- p + geom_bar(stat="identity",fill = "cornflowerblue")
-p <- p + ggtitle("Bitcoin Variable Importance from Random Forest")
+p <- p + ggtitle("Dow Variable Importance from Random Forest")
 p <- p + theme(panel.background = element_rect(fill = "lightgrey",colour = "lightgrey"))
 p
 ```
@@ -155,7 +155,7 @@ p
 
 
 ```{r}
-DowPredictive <- subset(VarSelection, select = -c(Dow,ChangeDow, Bitcoin, SP500, ChangeSP500, Nasdaq,ChangeNasdaq,InterestRates, FederalFundsRate,X10YrTreasuryYield,Prices,EconomicPolicyUncertainty, X3YrTreasuryYield, disposable.Value, X30YrTreasuryYield, BusinessConditions, Unemployment))
+DowPredictive <- subset(VarSelection, select = -c(Dow, Bitcoin,ChangeBitcoin, SP500, ChangeSP500, Nasdaq,ChangeNasdaq,InterestRates, FederalFundsRate,X10YrTreasuryYield, ConsumerUnemployment, Prices,EconomicPolicyUncertainty, X3YrTreasuryYield, disposable.Value, X30YrTreasuryYield, BusinessConditions, Unemployment))
 ```
 
 

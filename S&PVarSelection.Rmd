@@ -172,7 +172,7 @@ plot(ImportanceRegSP, main = "Variable Importance from Random Forest", ylab = "I
 ```{r}
 p <- ggplot(ImportanceRegSP, aes(x=variable, weight=importance, fill=variable)) 
 p <- p + geom_bar(stat="identity",fill = "cornflowerblue")
-p <- p + ggtitle("Bitcoin Variable Importance from Random Forest")
+p <- p + ggtitle("S&P 500 Variable Importance from Random Forest")
 p <- p + theme(panel.background = element_rect(fill = "lightgrey",colour = "lightgrey"))
 p
 ```

@@ -145,7 +145,7 @@ plot(ImportanceRegNas, main = "Variable Importance from Random Forest", ylab = "
 ```{r}
 p <- ggplot(ImportanceRegNas, aes(x=variable, weight=importance, fill=variable)) 
 p <- p + geom_bar(stat="identity",fill = "cornflowerblue")
-p <- p + ggtitle("Bitcoin Variable Importance from Random Forest")
+p <- p + ggtitle("Nasdaq Variable Importance from Random Forest")
 p <- p + theme(panel.background = element_rect(fill = "lightgrey",colour = "lightgrey"))
 p
 ```
@@ -154,7 +154,7 @@ p
 
 
 ```{r}
-NasdaqPredictive <- subset(VarSelection, select = -c(Dow,ChangeDow, Bitcoin, SP500, ChangeSP500, Nasdaq,ChangeNasdaq, X3YrTreasuryYield, disposable.Value, X30YrTreasuryYield, BusinessConditions, Unemployment, ConsumerUnemployment, EconomicPolicyUncertainty, Prices, FederalReserveLoans,EquityMktUncertainty))
+NasdaqPredictive <- subset(VarSelection, select = -c(Dow,ChangeDow, Bitcoin,ChangeBitcoin, SP500, ChangeSP500, Nasdaq, X3YrTreasuryYield, disposable.Value, X30YrTreasuryYield, BusinessConditions, Unemployment, ConsumerUnemployment, EconomicPolicyUncertainty, Prices, FederalReserveLoans,EquityMktUncertainty))
 ```
 
 
